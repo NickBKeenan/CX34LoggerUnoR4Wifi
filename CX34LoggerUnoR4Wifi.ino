@@ -11,7 +11,8 @@ extern const char * HoldingLabels[];
 
 
 
-#define SERIAL2_DE_PIN A3
+#define SERIAL_DE_PIN A3
+#define SERIAL_RE_PIN A2
 
 
 
@@ -36,18 +37,18 @@ void setup()
 
     node.begin(ModbusID, Serial1);
 
-    node.SetPins(SERIAL2_DE_PIN, SERIAL2_DE_PIN);
+    node.SetPins(SERIAL_DE_PIN, SERIAL_RE_PIN);
 
 
 
 
      
-  pinMode(SERIAL2_DE_PIN, OUTPUT);
- 
+  pinMode(SERIAL_DE_PIN, OUTPUT);
+ pinMode(SERIAL_RE_PIN, OUTPUT);
 
   Serial.println("About to write pins");
-  digitalWrite(SERIAL2_DE_PIN, HIGH);
-
+  digitalWrite(SERIAL_DE_PIN, HIGH);
+digitalWrite(SERIAL_RE_PIN, HIGH);
 
  // logger.setup(&lcd);
   logger.setup();
@@ -59,8 +60,8 @@ CX34Status HeatPumpStatus;
 void loop() {
   // put your main code here, to run repeatedly:
   // check once a minute, log once every ten minutes
-  logger.PostUpdate("test,test");
-  //while(!DisplaySettings(&node, &HeatPumpStatus, "HeatPump"))
+  //logger.PostUpdate("test,test");
+  while(!DisplaySettings(&node, &HeatPumpStatus, "HeatPump"))
     ;
   delay(30000); // one minute
   
