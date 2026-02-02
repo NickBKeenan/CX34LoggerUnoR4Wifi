@@ -76,7 +76,7 @@ void reboot()
       //Initialize serial and wait for port to open:
       
       mode = MODE_IDLE;
-      lastWebCheck = 0;
+      
       
    
       read = 0;
