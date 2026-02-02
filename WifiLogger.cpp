@@ -22,19 +22,14 @@ void reboot()
 
   void WifiLogger::check() {
 
-      switch (mode) {
-      case MODE_IDLE:
-      {
-          break;
-      }
-      case MODE_WAITUPDATE:
+      if(mode== MODE_WAITUPDATE)
       {
           WaitUpdate();
-          break;
+      
       }
       
       
-      }
+      
   }
   void WifiLogger::ConnectWiFi()
   {
@@ -281,6 +276,7 @@ void reboot()
       Serial.println(read);
       Serial.print("Max line length:");
       Serial.println(maxlinelength);
+      client.stop();
 
       // now we have to read the buffer for a redirect string. If it's there, go onto the next mode. Otherwise go back to mode zero
       if (haveredirect) {
