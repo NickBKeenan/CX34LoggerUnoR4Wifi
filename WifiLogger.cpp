@@ -140,7 +140,7 @@ void reboot()
           Serial.println("connected to server");
       }
 
-      {
+      
 
 
 
@@ -171,7 +171,11 @@ void reboot()
               check();
             }
           }
-      }
+          else
+          {
+            Serial.println("client is no longer connected");      
+          }
+      
 
   }
   /////////////////////////////////////////////
@@ -200,6 +204,7 @@ void reboot()
         {
           waitCount++;
           delay(10);
+          Serial.print("+");
         }
       }
       if(waitCount > 600) // roughly 60 seconds
@@ -265,6 +270,7 @@ void reboot()
           {
               
               delay(10);
+              Serial.print(".");
               return;
           }
       }
