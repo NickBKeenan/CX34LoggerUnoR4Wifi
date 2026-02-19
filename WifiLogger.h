@@ -10,8 +10,9 @@
 
 
 #define MODE_IDLE 0
-#define MODE_GETUPDATE 1
+
 #define MODE_WAITUPDATE 2
+#define MODE_ERROR 3
 
 
 class WifiLogger
@@ -24,6 +25,7 @@ class WifiLogger
   public:
   void PostUpdate(char * status);
   private:
+  int DoUpdate(char * statusString);
   void WaitUpdate();
   void GetRedirect();
   void WaitRedirect();

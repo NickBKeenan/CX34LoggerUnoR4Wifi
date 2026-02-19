@@ -109,9 +109,17 @@ void reboot()
   void WifiLogger::PostUpdate(char * statusString)
 
   {
-      
-
+       while(!DoUpdate(statusString))
+      {
+        Serial.println("Retrying..");
+        delay(60000);
+      }
+   
+  }
+int WifiLogger::DoUpdate(char * statusString)
+  {
       read = 0;
+      mode=MODE_ERROR;
       if (!client.connected())
       {
           Serial.println("\nConnecting to server...");
@@ -122,7 +130,7 @@ void reboot()
           {
               Serial.println(WiFi.status());
               client.stop();
-              //mode = MODE_IDLE;
+              
               
 
 
@@ -135,7 +143,7 @@ void reboot()
               WiFi.disconnect();
               WiFi.end();
               ConnectWiFi();
-              return;
+              return false;
           }
           Serial.println("connected to server");
       }
@@ -166,7 +174,7 @@ void reboot()
           if(client.connected()) // on keepalive timeout, server will disconnect once we send a request.
           {
             mode=MODE_WAITUPDATE;
-            while(mode!= MODE_IDLE)
+            while(mode== MODE_WAITUPDATE)
             {
               check();
             }
@@ -175,7 +183,11 @@ void reboot()
           {
             Serial.println("client is no longer connected");      
           }
-      
+        if(mode==MODE_ERROR)
+        {
+          return false;
+        }      
+        return true;
 
   }
   /////////////////////////////////////////////
@@ -212,7 +224,7 @@ void reboot()
         Serial.println("Closing Client");
         
         client.stop();
-        mode = MODE_IDLE;
+        mode = MODE_ERROR;
         waitCount=0;
         return;
       }
@@ -292,7 +304,7 @@ void reboot()
       else {
         Serial.println("Error, redirect string not found");
         Serial.println();
-          mode = MODE_IDLE;
+          mode = MODE_ERROR;
           
       }
 
