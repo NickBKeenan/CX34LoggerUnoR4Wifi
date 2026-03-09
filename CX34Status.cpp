@@ -38,7 +38,11 @@ bool CX34Reading::Read(ModbusClient*pnode, const char * pLabel)
 // ambient c02, inlet temp c281, outlet temp 205 , waterflow c13
 // pump setting c49, compressor current c56
 
-  ambient=CtoF(holdingData[2]);
+
+
+  rawambient=holdingData[2];
+  ambient=CtoF(rawambient);
+    
   
   outlet=CtoF(holdingData[5]);
   flow=ltogal(holdingData[13]);
@@ -47,7 +51,7 @@ bool CX34Reading::Read(ModbusClient*pnode, const char * pLabel)
   volts=holdingData[55];
   supplemental=holdingData[62];
   frequency=holdingData[27];
-  defrost=holdingData[16];
+
   
 
   result = pnode->readHoldingRegisters( 281, 1);
@@ -57,9 +61,9 @@ bool CX34Reading::Read(ModbusClient*pnode, const char * pLabel)
     delay(1000);
     return false;
   }
-
-
-  inlet=CtoF(pnode->ResponseBufferGetAt(0));
+  
+  rawinlet=pnode->ResponseBufferGetAt(0);
+  inlet=CtoF(rawinlet);
 
   // get  setpoint
   // cooling is 142
@@ -76,13 +80,13 @@ bool CX34Reading::Read(ModbusClient*pnode, const char * pLabel)
 
   if(pnode->ResponseBufferGetAt(0) ==0 )  // cool
   {
-    setpoint=pnode->ResponseBufferGetAt(1);
+    rawsetpoint=pnode->ResponseBufferGetAt(1);
   }
   else
   {
-    setpoint=pnode->ResponseBufferGetAt(2);
+    rawsetpoint=pnode->ResponseBufferGetAt(2);
   }
-  setpoint=CtoF(setpoint*10);
+  setpoint=CtoF(rawsetpoint*10);
   
   BTU=(outlet-inlet)*flow*500;
   Watts=current*240; // the emporia watts 
@@ -121,8 +125,8 @@ bool CX34Reading::Read(ModbusClient*pnode, const char * pLabel)
   Serial.print(supplemental);
   Serial.print(" Freq: ");
   Serial.print(frequency );
-  Serial.print(" Def: ");
-  Serial.print(defrost );
+
+
     return true;
   //delay(5000);
 }
@@ -141,11 +145,12 @@ CX34Status::CX34Status()
     BTU=0;
     Watts=0;
     supplemental=0;
-    lastdefrost=0;
+    
 
   starttime=millis();
   lasttime=starttime;
   lastfrequency=-1;
+  lastambient=-1;
 
   }
 void CX34Status::Log(CX34Reading * pcxr)
@@ -166,7 +171,8 @@ void CX34Status::Log(CX34Reading * pcxr)
 
 
   lastfrequency=pcxr->frequency;
-  lastdefrost=pcxr->defrost;
+  lastambient=pcxr->ambient;
+  
   unsigned long now=millis();
   unsigned long elapsed=now-lasttime;
   if(elapsed > 0)
@@ -196,6 +202,7 @@ void CX34Status::Log(CX34Reading * pcxr)
 
     unsigned long now=millis();
     unsigned long elapsed=now-starttime;
+
     float hours=(elapsed)/3600000.0;
     if(hours>1.00)
     {
@@ -274,7 +281,97 @@ void CX34Status::Log(CX34Reading * pcxr)
     return m_StatusLine;
   }
     
+void CX34Status::CheckSetpoint(CX34Reading * pcxr, ModbusClient*pnode)
+{
+    //Setpoint is 37C, window is 2.5c in each direction, so on at 34.5C, off at 39.5C
 
+  // now figure out target
+  // rawambient is in C, times 10
+  float Deltaambient=pcxr->ambient-lastambient;
+  if(Deltaambient<0)
+    Deltaambient*=-1;
+
+  if(Deltaambient < 1.0)  // only change the setpoint if the current temperature is within 1 degree of previous. Defrost cycles cause ambient to spike, ignore them
+  {
+    short target;
+    short rawambient=pcxr->rawambient;
+    short rawinlet=pcxr->rawinlet;
+    short rawsetpoint=pcxr->rawsetpoint;
+
+    // set the target temperature. This formula comes from the spreadsheet Chiltrix provides for calculating your reset curve
+    if(rawambient >=250) // if ambient is above 25C, just set target to 25C
+    {
+      target=25;
+    }
+    else
+    {
+      if(rawambient < 0) // if ambient is below zero, set target to 37
+      {
+        target=37;
+      }
+      else  // between 0 and 25, use Chiltrix's formula
+      {
+        target=250 +(220-rawambient)*6/10;
+        target /=10;
+      }
+    }
+  float lowrange, hirange;
+
+  short hitarget, lowtarget;
+
+  // the range for water temperature is target +- 2.5C, switch on if it goes below, switch off if it goes above
+  lowrange=target-2.5;
+  hirange=target+2.5;
+  // to switch on, set target on heat pump to 5C above actual target, to switch off set it to 5c below actual target
+  hitarget=target+5;
+  lowtarget=target-5;
+
+
+    if(rawinlet/10.0 < lowrange)  // we've passed the low end of the range, time to turn on
+    {
+      if(rawsetpoint <hitarget)  // don't set it if it's already set
+      {
+        Serial.println();
+        Serial.print("setting setpoint to ");
+
+        Serial.print( hitarget);
+        Serial.print("C ");
+        Serial.print( target);
+        Serial.print("C ");
+        Serial.print( lowrange);
+        Serial.print("C ");
+         Serial.print(pcxr->ambient);
+         Serial.print("F ");
+         Serial.print(lastambient);
+         Serial.print("F ");
+        pnode->TransmitBufferPutAt(0, hitarget);
+        pnode->writeMultipleRegisters( 143, 1);
+      }
+    }
+    if(rawinlet/10.0 > hirange) // we've passed the high end of the range, time to tur off
+    {
+      if(rawsetpoint >lowtarget) // don't set it if it's already set
+      {
+        Serial.println();
+        Serial.print("setting setpoint to ");
+        Serial.print( lowtarget);
+        Serial.print("C ");
+        Serial.print( target);
+        Serial.print("C ");
+        Serial.print( hirange);
+        Serial.print("C ");
+         Serial.print(pcxr->ambient);
+         Serial.print("F ");
+         Serial.print(lastambient);
+         Serial.print("F ");
+        pnode->TransmitBufferPutAt(0, lowtarget);
+        pnode->writeMultipleRegisters( 143, 1);
+
+      }
+
+    }
+  }
+}
 
 
   float ltogal(short data)

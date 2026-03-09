@@ -1,4 +1,7 @@
 
+// to set unit into manual opertion mode: 
+// Go to settings tab on desktop and change "AU of heat mode" to disable
+//  
 #include <ModbusClient.h>
 
 
@@ -78,11 +81,15 @@ bool DisplaySettings(ModbusClient*pnode, CX34Status *pStatus, const char * pLabe
   if(pStatus->changed(&c34))
   {
     Serial.println();
-    
     logger.PostUpdate(pStatus->statusLine(pLabel));
+    
     pStatus->Reset();
   }
+
+  // if enabled, the line below will control the setpoint to make the unit always run at full output
+  //pStatus->CheckSetpoint(&c34, pnode);
   pStatus->Log(&c34);
+  
   return true;
 }
 

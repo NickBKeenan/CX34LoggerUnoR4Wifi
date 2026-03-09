@@ -13,7 +13,10 @@ float COP;
 float supplemental;
 float setpoint;
 short frequency;
-short defrost;
+short rawambient;
+short rawinlet;
+short rawsetpoint;
+
 
 
   public: 
@@ -44,7 +47,8 @@ class CX34Status
 
   //
   short lastfrequency;
-  short lastdefrost;
+  float lastambient;
+  
 
   HLA hlaAmbient;
   HLA hlaSetpoint;
@@ -60,6 +64,7 @@ class CX34Status
   public:
   CX34Status();
   void Log(CX34Reading * pcxr);
+  void CheckSetpoint(CX34Reading * pcxr, ModbusClient*pnode);
   void Reset();
   
   bool changed(CX34Reading *preading);
